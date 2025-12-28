@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from './ui/Button';
-import { Settings, Sparkles, Image as ImageIcon, Type } from 'lucide-react';
+import { Settings, Sparkles, Image as ImageIcon, Type, Plus, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export function ControlPanel({
@@ -27,6 +27,64 @@ export function ControlPanel({
 }) {
     const [showSettings, setShowSettings] = React.useState(false);
     const [copyHint, setCopyHint] = React.useState('');
+    const [customModels, setCustomModels] = React.useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem('customModels') || '[]');
+        } catch {
+            return [];
+        }
+    });
+    const [newModelName, setNewModelName] = React.useState('');
+
+    // 保存自定义模型到localStorage
+    React.useEffect(() => {
+        localStorage.setItem('customModels', JSON.stringify(customModels));
+    }, [customModels]);
+
+    // 添加自定义模型
+    const addCustomModel = () => {
+        const trimmedName = newModelName.trim();
+        if (!trimmedName) return;
+        
+        const defaultModels = [
+            'nano-banana-2-2k',
+            'nano-banana-2',
+            'nano-banana-2-4k', 
+            'nano-banana',
+            'gemini-3-pro-image-preview',
+            'gemini-2.5-flash-image'
+        ];
+        
+        if (defaultModels.includes(trimmedName) || customModels.includes(trimmedName)) {
+            alert('该模型已存在');
+            return;
+        }
+        
+        setCustomModels(prev => [...prev, trimmedName]);
+        setNewModelName('');
+    };
+
+    // 删除自定义模型
+    const removeCustomModel = (modelToRemove) => {
+        setCustomModels(prev => prev.filter(model => model !== modelToRemove));
+        // 如果删除的是当前选中的模型，切换到默认模型
+        if (modelName === modelToRemove) {
+            setModelName('nano-banana-2-2k');
+        }
+    };
+
+    // 获取所有模型选项
+    const getAllModels = () => {
+        const defaultModels = [
+            'nano-banana-2-2k',
+            'nano-banana-2',
+            'nano-banana-2-4k',
+            'nano-banana',
+            'gemini-3-pro-image-preview',
+            'gemini-2.5-flash-image'
+        ];
+        return [...defaultModels, ...customModels];
+    };
 
     const copyToClipboard = async (text) => {
         if (!text) return false;
@@ -97,22 +155,61 @@ export function ControlPanel({
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-widest text-slate-500">模型名称</label>
-                        <input
-                            type="text"
+                        <select
                             value={modelName}
                             onChange={(e) => setModelName(e.target.value)}
                             className="w-full px-3 py-2 bg-white/80 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                            placeholder="gemini-2.5-flash-image"
-                            list="modelNameOptions"
-                        />
-                        <datalist id="modelNameOptions">
-                            <option value="nano-banana-2" />
-                            <option value="nano-banana-2-2k" />
-                            <option value="nano-banana-2-4k" />
-                            <option value="nano-banana" />
-                            <option value="gemini-3-pro-image-preview" />
-                            <option value="gemini-2.5-flash-image" />
-                        </datalist>
+                        >
+                            {getAllModels().map(model => (
+                                <option key={model} value={model}>{model}</option>
+                            ))}
+                        </select>
+                        
+                        {/* 自定义模型管理 */}
+                        <div className="mt-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold uppercase tracking-widest text-slate-500">自定义模型</span>
+                            </div>
+                            
+                            {/* 添加新模型 */}
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newModelName}
+                                    onChange={(e) => setNewModelName(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && addCustomModel()}
+                                    className="flex-1 px-2 py-1 bg-white/80 rounded border border-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                    placeholder="输入模型名称"
+                                />
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={addCustomModel}
+                                    className="px-2 py-1 h-auto"
+                                >
+                                    <Plus size={14} />
+                                </Button>
+                            </div>
+                            
+                            {/* 显示自定义模型列表 */}
+                            {customModels.length > 0 && (
+                                <div className="space-y-1 max-h-24 overflow-y-auto">
+                                    {customModels.map(model => (
+                                        <div key={model} className="flex items-center justify-between bg-white/50 rounded px-2 py-1">
+                                            <span className="text-xs text-slate-700 flex-1 truncate">{model}</span>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => removeCustomModel(model)}
+                                                className="px-1 py-0 h-auto text-red-500 hover:text-red-700"
+                                            >
+                                                <X size={12} />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

@@ -52,6 +52,38 @@ const base64ToBlob = (base64, mimeType = 'image/png') => {
     return new Blob([ab], { type: mimeType });
 };
 
+/**
+ * Download remote image and convert to base64
+ */
+const downloadImageAsBase64 = async (imageUrl) => {
+    try {
+        const response = await fetchWithTimeout(imageUrl, {
+            method: 'GET',
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to download image: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const mimeType = blob.type || 'image/png';
+        
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onload = () => {
+                const dataUrl = reader.result;
+                const base64 = dataUrl.split(',')[1];
+                resolve({ mimeType, base64 });
+            };
+            reader.onerror = reject;
+        });
+    } catch (error) {
+        console.error('Error downloading image:', error);
+        throw error;
+    }
+};
+
 export async function uploadFile({ dataUrl, apiKey, baseUrl, filename = 'upload.png' }) {
     const url = `${baseUrl || API_CONFIG.baseUrl}/v1/files`;
 
@@ -93,7 +125,7 @@ export async function uploadFile({ dataUrl, apiKey, baseUrl, filename = 'upload.
     return data; // { id, url, ... }
 }
 
-const extractBase64ImageFromChat = (payload) => {
+const extractBase64ImageFromChat = async (payload) => {
     // Try common shapes (provider variations)
     const candidates = [];
 
@@ -104,6 +136,18 @@ const extractBase64ImageFromChat = (payload) => {
     // 2) chat.completions: choices[0].message.content (string or array)
     const content = payload?.choices?.[0]?.message?.content;
     if (typeof content === 'string') {
+        // Check for markdown image format: ![image](url)
+        const markdownImageMatch = content.match(/!\[.*?\]\((https?:\/\/[^\)]+)\)/);
+        if (markdownImageMatch) {
+            const imageUrl = markdownImageMatch[1];
+            try {
+                return await downloadImageAsBase64(imageUrl);
+            } catch (error) {
+                console.error('Failed to download markdown image:', error);
+                // Continue to try other formats
+            }
+        }
+
         const asDataUrl = parseDataUrl(content);
         if (asDataUrl) return asDataUrl;
 
@@ -222,7 +266,7 @@ export async function generateImageViaChatCompletions({ prompt, apiKey, baseUrl,
     }
 
     const data = await response.json();
-    const extracted = extractBase64ImageFromChat(data);
+    const extracted = await extractBase64ImageFromChat(data);
     if (!extracted) throw new Error('生成失败：未从响应中解析到图片数据');
     return extracted; // { mimeType, base64 }
 }
@@ -282,7 +326,7 @@ export async function editImageViaChatCompletions({ imageDataUrl, maskDataUrl, p
     }
 
     const data = await response.json();
-    const extracted = extractBase64ImageFromChat(data);
+    const extracted = await extractBase64ImageFromChat(data);
     if (!extracted) throw new Error('编辑失败：未从响应中解析到图片数据');
     return extracted; // { mimeType, base64 }
 }

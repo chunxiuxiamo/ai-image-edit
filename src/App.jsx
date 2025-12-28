@@ -22,7 +22,7 @@ function App() {
 
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('apiKey') || '');
   const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem('baseUrl') || 'https://foxi-ai.top');
-  const [modelName, setModelName] = useState(() => localStorage.getItem('modelName') || 'gemini-2.5-flash-image');
+  const [modelName, setModelName] = useState(() => localStorage.getItem('modelName') || 'nano-banana-2-2k');
 
   const [mode, setMode] = useState('generate'); // 'generate' | 'edit'
   const [isDrawing, setIsDrawing] = useState(false);
